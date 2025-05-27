@@ -1,0 +1,174 @@
+import discord
+from discord.ext import commands
+from datetime import datetime
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+user_data = {}
+dil_tercihi = {}
+
+mesajlar = {
+    "tr": {
+        "tanitim": "Merhaba ben Kerem Salih Mete, 13 yaşındayım. Bu karbon ayak izi projesinin sahibiyim. Orta düzey Python bilgim var!",
+        "sorular": ["🚗 Günlük kaç km araba kullanıyorsun?",
+                    "💡 Günlük kaç kWh elektrik harcıyorsun?",
+                    "🚿 Günlük kaç litre su harcıyorsun?",
+                    "🥩 Günlük kaç gram et tüketiyorsun?"],
+        "sonuc": "🌍 **Yıllık Karbon Ayak İzin**: {karbon:.2f} kg CO₂\n📝 **Yorum:**\n{yorum}",
+        "yorumlar": ["Tebrikler! Karbon ayak iziniz düşük seviyede.",
+                     "Karbon ayak iziniz orta seviyede. Daha iyi olabilir.",
+                     "Karbon ayak iziniz oldukça yüksek. Daha çevreci alternatifler tercih etmelisiniz."],
+        "kayit_yok": "🔍 Kayıt bulunamadı. Önce !hesapla ile veri girmelisin.",
+        "gecmis": "📜 **{user} kullanıcısının geçmiş verileri:**\n",
+        "veri": "- 🚗 Araba: {araba} km\n- 💡 Elektrik: {elektrik} kWh\n- 🚿 Su: {su} litre\n- 🥩 Et: {et} gram\n📅 {tarih}",
+        "karsilastirma_yok": "📊 Karşılaştırma için en az 2 kayıt gerekli. !hesapla komutunu tekrar kullan.",
+        "karsilastirma": "📅 **Son iki kaydın karşılaştırması:**\n• Eski: {eski} — {eski_karbon:.2f} kg CO₂/yıl\n• Yeni: {yeni} — {yeni_karbon:.2f} kg CO₂/yıl\n\n{durum}",
+        "durumlar": ["⚖️ Karbon ayak izin değişmemiş gibi görünüyor.",
+                     "🔺 Karbon ayak izin **artmış**! (+{fark:.2f} kg CO₂)",
+                     "🔻 Karbon ayak izin **azalmış**! ({fark:.2f} kg CO₂ tasarruf)"],
+        "temizlendi": "🧹 Tüm karbon verilerin başarıyla silindi.",
+        "dil_degisti": "🌐 Dil Türkçe olarak ayarlandı.",
+        "gecersiz": "❗ Lütfen sayısal bir değer girin.",
+    },
+    "en": {
+        "tanitim": "Hello! I'm Kerem Salih Mete, 13 years old. I'm the creator of this carbon footprint project. I have intermediate Python knowledge!",
+        "sorular": ["🚗 How many km do you drive daily?",
+                    "💡 How many kWh of electricity do you use daily?",
+                    "🚿 How many liters of water do you use daily?",
+                    "🥩 How many grams of meat do you consume daily?"],
+        "sonuc": "🌍 **Your Annual Carbon Footprint**: {karbon:.2f} kg CO₂\n📝 **Comment:**\n{yorum}",
+        "yorumlar": ["Congrats! Your carbon footprint is low.",
+                     "Your carbon footprint is moderate. Could be better.",
+                     "Your carbon footprint is high. Please consider greener habits."],
+        "kayit_yok": "🔍 No records found. Use !hesapla first.",
+        "gecmis": "📜 **Past records for {user}:**\n",
+        "veri": "- 🚗 Car: {araba} km\n- 💡 Electricity: {elektrik} kWh\n- 🚿 Water: {su} L\n- 🥩 Meat: {et} g\n📅 {tarih}",
+        "karsilastirma_yok": "📊 You need at least 2 records to compare. Use !hesapla again.",
+        "karsilastirma": "📅 **Comparison of last two entries:**\n• Old: {eski} — {eski_karbon:.2f} kg CO₂/year\n• New: {yeni} — {yeni_karbon:.2f} kg CO₂/year\n\n{durum}",
+        "durumlar": ["⚖️ Your footprint hasn't changed.",
+                     "🔺 Your footprint **increased**! (+{fark:.2f} kg CO₂)",
+                     "🔻 Your footprint **decreased**! ({fark:.2f} kg CO₂ saved)"],
+        "temizlendi": "🧹 All your carbon data has been deleted.",
+        "dil_degisti": "🌐 Language switched to English.",
+        "gecersiz": "❗ Please enter a numeric value.",
+    }
+}
+
+def karbon_hesapla(araba_km, elektrik_kwh, su_litre, et_gram):
+    return (araba_km * 0.2 + elektrik_kwh * 0.5 + su_litre * 0.002 + et_gram * 0.01) * 365
+
+@bot.command()
+async def tanitim(ctx):
+    dil = dil_tercihi.get(ctx.author.id, "tr")
+    mesaj = mesajlar[dil]["tanitim"]
+    await ctx.author.send(mesaj)
+
+@bot.event
+async def on_ready():
+    print(f"✅ Bot {bot.user} olarak giriş yaptı")
+    for guild in bot.guilds:
+        for member in guild.members:
+            if not member.bot:
+                try:
+                    dil = dil_tercihi.get(member.id, "tr")
+                    mesaj = mesajlar[dil]["tanitim"]
+                    await member.send(mesaj)
+                except:
+                    continue
+
+@bot.command()
+async def dil(ctx, secim=None):
+    if secim == "en":
+        dil_tercihi[ctx.author.id] = "en"
+        await ctx.send(mesajlar["en"]["dil_degisti"])
+    else:
+        dil_tercihi[ctx.author.id] = "tr"
+        await ctx.send(mesajlar["tr"]["dil_degisti"])
+
+@bot.command()
+async def hesapla(ctx):
+    dil = dil_tercihi.get(ctx.author.id, "tr")
+    sorular = mesajlar[dil]["sorular"]
+    try:
+        cevaplar = []
+        for soru in sorular:
+            await ctx.send(soru)
+            mesaj = await bot.wait_for("message", check=lambda m: m.author == ctx.author and m.channel == ctx.channel)
+            cevaplar.append(float(mesaj.content))
+    except ValueError:
+        await ctx.send(mesajlar[dil]["gecersiz"])
+        return
+
+    karbon = karbon_hesapla(*cevaplar)
+    yorumlar = mesajlar[dil]["yorumlar"]
+    if karbon <= 3000:
+        yorum = yorumlar[0]
+    elif karbon <= 6000:
+        yorum = yorumlar[1]
+    else:
+        yorum = yorumlar[2]
+
+    if ctx.author.id not in user_data:
+        user_data[ctx.author.id] = []
+    user_data[ctx.author.id].append({
+        "tarih": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "araba": cevaplar[0],
+        "elektrik": cevaplar[1],
+        "su": cevaplar[2],
+        "et": cevaplar[3],
+    })
+
+    await ctx.send(mesajlar[dil]["sonuc"].format(karbon=karbon, yorum=yorum))
+
+@bot.command()
+async def geçmiş(ctx):
+    dil = dil_tercihi.get(ctx.author.id, "tr")
+    veriler = user_data.get(ctx.author.id, [])
+    if not veriler:
+        await ctx.send(mesajlar[dil]["kayit_yok"])
+        return
+
+    mesaj = mesajlar[dil]["gecmis"].format(user=ctx.author.name)
+    for v in veriler:
+        mesaj += "\n" + mesajlar[dil]["veri"].format(**v)
+    await ctx.send(mesaj)
+
+@bot.command()
+async def karsilastir(ctx):
+    dil = dil_tercihi.get(ctx.author.id, "tr")
+    veriler = user_data.get(ctx.author.id, [])
+    if len(veriler) < 2:
+        await ctx.send(mesajlar[dil]["karsilastirma_yok"])
+        return
+
+    eski, yeni = veriler[-2], veriler[-1]
+    eski_karbon = karbon_hesapla(eski["araba"], eski["elektrik"], eski["su"], eski["et"])
+    yeni_karbon = karbon_hesapla(yeni["araba"], yeni["elektrik"], yeni["su"], yeni["et"])
+    fark = yeni_karbon - eski_karbon
+
+    if fark > 0:
+        durum = mesajlar[dil]["durumlar"][1].format(fark=fark)
+    elif fark < 0:
+        durum = mesajlar[dil]["durumlar"][2].format(fark=-fark)
+    else:
+        durum = mesajlar[dil]["durumlar"][0]
+
+    mesaj = mesajlar[dil]["karsilastirma"].format(
+        eski=eski["tarih"], yeni=yeni["tarih"],
+        eski_karbon=eski_karbon, yeni_karbon=yeni_karbon,
+        durum=durum
+    )
+    await ctx.send(mesaj)
+
+@bot.command()
+async def temizle(ctx):
+    user_data.pop(ctx.author.id, None)
+    await ctx.send(mesajlar[dil_tercihi.get(ctx.author.id, "tr")]["temizlendi"])
+
+bot.run("MTM3MTkyMzQwNDgzMTE5OTI3Mg.G6aqeC.QQMGjGV4P0s1nPsCj5D1Fypgf490nmJpSAERGc")
+
+
+
+
