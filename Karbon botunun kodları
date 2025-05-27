@@ -167,7 +167,7 @@ async def temizle(ctx):
     user_data.pop(ctx.author.id, None)
     await ctx.send(mesajlar[dil_tercihi.get(ctx.author.id, "tr")]["temizlendi"])
 
-bot.run("MTM3MTkyMzQwNDgzMTE5OTI3Mg.G6aqeC.QQMGjGV4P0s1nPsCj5D1Fypgf490nmJpSAERGc")
+bot.run("")
 
 
 
